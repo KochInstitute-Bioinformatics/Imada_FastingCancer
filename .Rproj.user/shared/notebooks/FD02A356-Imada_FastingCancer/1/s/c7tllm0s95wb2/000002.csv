@@ -1,0 +1,8 @@
+"0","gene.lists <- read_xlsx(""Munoz_Yilmaz_CellCycle_signatures.xlsx"")"
+"0","gene.lists.names <- colnames(gene.lists)"
+"0","GOI.lists <- c()"
+"0","for (i in gene.lists.names) {"
+"0","  tmpList <- gene.lists %>% dplyr::select(all_of(i))"
+"0","  tmpList <- tmpList[!is.na(tmpList)]"
+"0","  GOI.lists[[i]] <- tmpList"
+"0","}"

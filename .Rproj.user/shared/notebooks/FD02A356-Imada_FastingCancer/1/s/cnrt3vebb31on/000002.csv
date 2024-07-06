@@ -1,0 +1,14 @@
+"0","DefaultAssay(integrated)<-""RNA"""
+"0","Idents(object = integrated) <- integrated$seurat_clusters"
+"0","clust5.subset <- subset(integrated, idents = c(""5""))"
+"0","Idents(object = clust5.subset) <- clust5.subset$treat_clust"
+"0","levels(clust5.subset) <- c(""al5"",""f5"",""rf5"",""rf.rapa5"")"
+"0","clust5.subset$treat_clust <- factor(x = clust5.subset$treat_clust, levels = c(""al5"",""f5"",""rf5"",""rf.rapa5""))"
+"0","VlnPlot(clust5.subset, features = c(""Oat""), split.by = ""treat_clust"", group.by = ""treat_clust"", slot= ""data"",pt.size = 0.5)"
+"2","The default behaviour of split.by has changed.
+Separate violin plots are now plotted side-by-side.
+To restore the old behaviour of a single split violin,
+set split.plot = TRUE.
+      
+This message will be shown once per session.
+"

@@ -1,0 +1,3 @@
+"0",""
+"0","fp.Lyz1 <- FeaturePlot(integrated,reduction=""umap"",features=""Lyz1"",cols=colorScheme, slot = ""data"",label=TRUE, repel=TRUE,label.size=4)"
+"0","fp.Lyz1"

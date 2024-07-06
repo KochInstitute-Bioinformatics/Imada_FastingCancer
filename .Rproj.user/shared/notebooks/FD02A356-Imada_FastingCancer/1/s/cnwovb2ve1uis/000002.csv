@@ -1,0 +1,5 @@
+"0","DefaultAssay(integrated)<-""RNA"""
+"0","Idents(object = integrated) <- integrated$orig.ident"
+"0","levels(integrated) <- c(""al"",""f"",""rf"",""rf.rapa"")"
+"0","integrated$orig.ident <- factor(x = integrated$orig.ident, levels = c(""al"",""f"",""rf"",""rf.rapa""))"
+"0","VlnPlot(integrated, features = c(""Oat""), split.by = ""orig.ident"", group.by = ""orig.ident"", slot= ""data"",pt.size = 0.5)"

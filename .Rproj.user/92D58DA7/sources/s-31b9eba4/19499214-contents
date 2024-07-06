@@ -1,0 +1,128 @@
+---
+title: "2021 Fasting Cancer Project"
+author: "Charlie Whittaker"
+date: "1/19/2021 - revised 6/13/2024"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+  html_notebook: default
+  
+
+
+# escape ssGSEA - run ssGSEA to quantify expression of the BitonI gene set clusters
+
+This code is no longer working due to R and package updates but resulting data is stored in the seurat object
+
+```{r}
+# egs <- GeneSet(GOI.lists$Biton_S1_ISC.I, setName="BitonI")
+# ES <- enrichIt(obj = integrated, gene.sets=egs, groups = 1000, cores = 4)
+# integrated@meta.data$BitonI_ssGSEA <- ES$BitonI
+# 
+# egs <- GeneSet(GOI.lists$Biton_S1_ISC.II, setName="BitonII")
+# ES <- enrichIt(obj = integrated, gene.sets = egs, groups = 1000, cores = 4)
+# integrated@meta.data$BitonII_ssGSEA <- ES$BitonII
+# 
+# egs <- GeneSet(GOI.lists$Biton_S1_ISC.III, setName="BitonIII")
+# ES <- enrichIt(obj = integrated, gene.sets = egs, groups = 1000, cores = 4)
+# integrated@meta.data$BitonIII_ssGSEA <- ES$BitonIII
+```
+
+# Additional Figures
+
+## Biton I in cluster 5
+
+```{r}
+Idents(object = integrated) <- integrated$seurat_clusters
+clust5.subset <- subset(integrated, idents = c("5"))
+Idents(object = clust5.subset) <- clust5.subset$treat_clust
+plot.order <- c("al5","f5","rf5","rf.rapa5")
+Idents(object = clust5.subset) <- factor(Idents(object = clust5.subset), levels = plot.order)
+vln.BitonI.ssGSEA <- VlnPlot(clust5.subset, features="BitonI_ssGSEA",slot = "data",pt.size = 0.1) + 
+  stat_summary(fun = median, geom='point', size = 15, colour = "black", shape = 95)
+vln.BitonI.ssGSEA
+```
+
+## Biton II in cluster 2
+
+```{r}
+Idents(object = integrated) <- integrated$seurat_clusters
+clust2.subset <- subset(integrated, idents = c("2"))
+Idents(object = clust2.subset) <- clust2.subset$treat_clust
+plot.order <- c("al2","f2","rf2","rf.rapa2")
+Idents(object = clust2.subset) <- factor(Idents(object = clust2.subset), levels = plot.order)
+vln.BitonII.ssGSEA <- VlnPlot(clust2.subset, features="BitonII_ssGSEA",slot = "data",pt.size = 0.1) + 
+  stat_summary(fun = median, geom='point', size = 15, colour = "black", shape = 95)
+vln.BitonII.ssGSEA
+```
+
+## Biton III in cluster 10
+
+```{r}
+Idents(object = integrated) <- integrated$seurat_clusters
+clust10.subset <- subset(integrated, idents = c("10"))
+Idents(object = clust10.subset) <- clust10.subset$treat_clust
+plot.order <- c("al10","f10","rf10","rf.rapa10")
+Idents(object = clust10.subset) <- factor(Idents(object = clust10.subset), levels = plot.order)
+vln.BitonIII.ssGSEA <- VlnPlot(clust10.subset, features="BitonIII_ssGSEA",slot = "data",pt.size = 0.1) + 
+  stat_summary(fun = median, geom='point', size = 15, colour = "black", shape = 95)
+vln.BitonIII.ssGSEA
+```
+
+## Pdgfa in cluster5
+
+```{r}
+vln.Pdgfa <- VlnPlot(clust5.subset, features = c("Pdgfa"), slot= "data",pt.size = 0.1)
+vln.Pdgfa
+```
+
+## Gkn3 in cluster5
+
+```{r}
+vln.Gkn3 <- VlnPlot(clust5.subset, features = c("Gkn3"), slot= "data",pt.size = 0.1)
+vln.Gkn3
+```
+
+# Differential Expression Testing to prepare .rnk files
+
+```{r}
+DefaultAssay(integrated)<-"RNA"
+Idents(object = integrated) <- integrated$treat_clust
+levels(x = integrated)
+
+id1 <- "al5"
+id2 <- "al2"
+outData <- paste(id1,id2,"Markers",sep=".")
+outData <- FindMarkers(integrated, ident.1 = id1, ident.2 = id2,logfc.threshold = 0, assay="RNA")
+outData <- tibble::rownames_to_column(outData,"#MGISym")
+rnk.tmp <- outData %>% dplyr::select(c("#MGISym","avg_logFC"))
+write.table(rnk.tmp, sep='\t',file=paste0(id1,"_v_",id2,".rnk"),col.names=TRUE, quote=FALSE, row.names=FALSE)
+
+id1 <- "al10"
+id2 <- "al2"
+outData <- paste(id1,id2,"Markers",sep=".")
+outData <- FindMarkers(integrated, ident.1 = id1, ident.2 = id2,logfc.threshold = 0, assay="RNA")
+outData <- tibble::rownames_to_column(outData,"#MGISym")
+rnk.tmp <- outData %>% dplyr::select(c("#MGISym","avg_logFC"))
+write.table(rnk.tmp, sep='\t',file=paste0(id1,"_v_",id2,".rnk"),col.names=TRUE, quote=FALSE, row.names=FALSE)
+
+id1 <- "al10"
+id2 <- "al5"
+outData <- paste(id1,id2,"Markers",sep=".")
+outData <- FindMarkers(integrated, ident.1 = id1, ident.2 = id2,logfc.threshold = 0, assay="RNA")
+outData <- tibble::rownames_to_column(outData,"#MGISym")
+rnk.tmp <- outData %>% dplyr::select(c("#MGISym","avg_logFC"))
+write.table(rnk.tmp, sep='\t',file=paste0(id1,"_v_",id2,".rnk"),col.names=TRUE, quote=FALSE, row.names=FALSE)
+```
+
+# Save integrated object with ssGSEA data
+
+```{r}
+# save(integrated, file="integrated_091120.Robj")
+```
+
+```{r}
+sessionInfo()
+writeLines(capture.output(sessionInfo()), "061324_sessionInfo.txt")
+```
+

@@ -1,0 +1,2 @@
+"0","fp.Defa30 <- FeaturePlot(integrated,reduction=""umap"",features=""Defa30"",cols=c(""grey"",""red""), slot = ""data"",label=TRUE, repel=TRUE,label.size=4)"
+"0","fp.Defa30"

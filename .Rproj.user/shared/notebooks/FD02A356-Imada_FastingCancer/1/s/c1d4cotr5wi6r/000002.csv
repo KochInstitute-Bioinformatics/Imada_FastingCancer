@@ -1,0 +1,5 @@
+"0","DefaultAssay(integrated)<-""RNA"""
+"0","colorScheme <- c(""#C1BEBF"",""#fe6100"")"
+"0",""
+"0","fp.Muc2 <- FeaturePlot(integrated,reduction=""umap"",features=""Muc2"",cols=colorScheme, slot = ""data"",label=TRUE, repel=TRUE,label.size=4)"
+"0","fp.Muc2"

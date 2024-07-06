@@ -1,0 +1,2 @@
+"0","DefaultAssay(integrated)<-""integrated"""
+"0","DimPlot(integrated,reduction=""umap"",split.by=""orig.ident"",group.by=""orig.ident"")"

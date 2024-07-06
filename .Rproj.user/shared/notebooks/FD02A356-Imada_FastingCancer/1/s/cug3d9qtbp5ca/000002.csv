@@ -1,0 +1,9 @@
+"0","egs <- GeneSet(GOI.lists$Biton_S1_ISC.I, setName=""BitonI"")"
+"0","ES <- enrichIt(obj = integrated, gene.sets = egs, groups = 1000, cores = 4)"
+"1","[1]"
+"1"," ""Using sets of 1000 cells. Running 19 times."""
+"1","
+"
+"2","Error in (function (classes, fdef, mtable)  : 
+  unable to find an inherited method for function ‘gsva’ for signature ‘""matrix"", ""character""’
+"

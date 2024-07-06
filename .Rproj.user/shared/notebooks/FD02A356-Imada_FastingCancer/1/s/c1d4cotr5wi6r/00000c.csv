@@ -1,0 +1,3 @@
+"0",""
+"0","fp.Reg3a <- FeaturePlot(integrated,reduction=""umap"",features=""Reg3a"",cols=colorScheme, slot = ""data"",label=TRUE, repel=TRUE,label.size=4)"
+"0","fp.Reg3a"

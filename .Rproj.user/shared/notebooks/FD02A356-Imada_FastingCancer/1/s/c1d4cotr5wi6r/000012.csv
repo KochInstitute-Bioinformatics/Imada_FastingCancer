@@ -1,0 +1,3 @@
+"0",""
+"0","fp.Lgr5 <- FeaturePlot(integrated,reduction=""umap"",features=""Lgr5"",cols=colorScheme, slot = ""data"",label=TRUE, repel=TRUE,label.size=4)"
+"0","fp.Lgr5"

@@ -1,0 +1,23 @@
+producer_class	xtools.gsea.GseaPreranked
+producer_timestamp	1718314145163
+param	rpt_label	al5_v_al2.rnk.MouseSignatures
+param	rnd_seed	timestamp
+param	set_min	5
+param	zip_report	false
+param	create_svgs	false
+param	scoring_scheme	weighted
+param	rnk	/net/ostrom/data/bcc/projects/simada_Yilmaz/030620_scRNAseq/Imada_FastingCancer/al5_v_al2.rnk
+param	norm	meandiv
+param	out	/net/ostrom/data/bcc/projects/simada_Yilmaz/030620_scRNAseq/Imada_FastingCancer/jun13
+param	mode	Max_probe
+param	include_only_symbols	true
+param	help	false
+param	set_max	1500
+param	gmx	Munoz_Yilmaz_CellCycle_signatures.gmx
+param	make_sets	true
+param	plot_top_x	40
+param	gui	false
+param	nperm	1000
+param	collapse	No_Collapse
+
+file	/net/ostrom/data/bcc/projects/simada_Yilmaz/030620_scRNAseq/Imada_FastingCancer/jun13/al5_v_al2.rnk.MouseSignatures.GseaPreranked.1718314145163/index.html

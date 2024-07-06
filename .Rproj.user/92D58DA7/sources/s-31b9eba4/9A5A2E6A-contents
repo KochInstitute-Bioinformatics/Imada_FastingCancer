@@ -1,0 +1,684 @@
+---
+title: "2021 Fasting Cancer Project"
+author: "Charlie Whittaker"
+date: "1/19/2021 - revised July 2024"
+output: 
+  html_document: default
+  html_notebook: default
+---
+## Set options and working directory
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries
+
+```{r, warning=FALSE,error=FALSE,message=FALSE}
+library(Seurat)
+library(cowplot)
+library(umap)
+library(dplyr)
+library(Matrix)
+library(readxl)
+library(openxlsx)
+library(ggplot2)
+library(ggrepel)
+library(ggpubr)
+library(sctransform)
+library(knitr)
+library(kableExtra)
+#library(biomaRt)
+library(DESeq2)
+library(escape)
+library(dittoSeq)
+library(GSEABase)
+library(scater)
+library(ComplexHeatmap)
+```
+
+## Import marker sets
+
+```{r}
+gene.lists <- read_xlsx("Munoz_Yilmaz_CellCycle_signatures.xlsx")
+gene.lists.names <- colnames(gene.lists)
+GOI.lists <- c()
+for (i in gene.lists.names) {
+  tmpList <- gene.lists %>% dplyr::select(all_of(i))
+  tmpList <- tmpList[!is.na(tmpList)]
+  GOI.lists[[i]] <- tmpList
+}
+```
+
+# Load the Cell Ranger Matrix Data and create the base Seurat object.*
+
+the initial processing was done with r 3.6.1 with Seurat 3.2.0 - the UMAP comes out slightly differently in r 4.0.3 with Seurat 3.2.3*
+
+```{r}
+#al.dat <- Read10X("200218Yil_data/al/filtered_feature_bc_matrix/")
+#f.dat <- Read10X("200218Yil_data/f/filtered_feature_bc_matrix/")
+#rf.dat <- Read10X("200218Yil_data/rf/filtered_feature_bc_matrix/")
+#rf.rapa.dat <- Read10X("200218Yil_data/rf.rapa/filtered_feature_bc_matrix/")
+
+#al <- CreateSeuratObject(counts = al.dat, project = "al", min.cells = 3, min.features = 200)
+#f <- CreateSeuratObject(counts = f.dat, project = "f", min.cells = 3, min.features = 200)
+#rf <- CreateSeuratObject(counts = rf.dat, project = "rf", min.cells = 3, min.features = 200)
+#rf.rapa <- CreateSeuratObject(counts = rf.rapa.dat, project = "rf.rapa", min.cells = 3, min.features = 200)
+
+#al[["percent.mt"]] <- PercentageFeatureSet(al, pattern = "^mt-")
+#f[["percent.mt"]] <- PercentageFeatureSet(f, pattern = "^mt-")
+#rf[["percent.mt"]] <- PercentageFeatureSet(rf, pattern = "^mt-")
+#rf.rapa[["percent.mt"]] <- PercentageFeatureSet(rf.rapa, pattern = "^mt-")
+
+#VlnPlot(al, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+#VlnPlot(f, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+#VlnPlot(rf, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+#VlnPlot(al, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+```
+
+## Merge samples to single Seurat Object
+
+```{r}
+#merged_Seu <- merge(al, c(f,rf,rf.rapa), project = "Diet")
+
+#merged_Seu <- NormalizeData(merged_Seu, normalization.method = "LogNormalize", scale.factor = 10000)
+#merged_Seu <- FindVariableFeatures(merged_Seu, selection.method = "vst", nfeatures = 2000)
+#merged_Seu <- ScaleData(merged_Seu)
+#merged_Seu <- RunPCA(merged_Seu, features = VariableFeatures(object = merged_Seu))
+#merged_Seu <- RunUMAP(merged_Seu, reduction="pca",dims=1:30)
+#merged_Seu <- RunTSNE(merged_Seu, reduction="pca",dims=1:30)
+#merged_Seu <- FindNeighbors(merged_Seu, dims = 1:30, verbose = FALSE)
+#merged_Seu <- FindClusters(merged_Seu, verbose = FALSE)
+
+#DimPlot(merged_Seu,reduction="umap",group.by="orig.ident",label=TRUE,repel=FALSE)
+
+#FeaturePlot(merged_Seu,reduction="umap",features="mt-Cytb",min.cutoff=0,max.cutoff=4,cols=c("grey","red"))
+#FeaturePlot(merged_Seu,reduction="umap",features="percent.mt",cols=c("grey","red"))
+#FeaturePlot(merged_Seu,reduction="umap",features="nFeature_RNA",cols=c("grey","red"))
+```
+
+## Save/Load seurat object
+
+```{r}
+#save(merged_Seu, file="merged.Robj")
+#load("merged.Robj")
+```
+
+## Dataset Integration 
+
+```{r}
+#di <- SplitObject(merged_Seu, split.by = "orig.ident")
+
+#for (i in 1:length(di)) {
+#  di[[i]] <- NormalizeData(di[[i]], verbose = FALSE)
+#  di[[i]] <- FindVariableFeatures(di[[i]], selection.method = "vst", nfeatures = 2000,
+#                                      verbose = FALSE)
+#}
+
+#dat.anchors <- FindIntegrationAnchors(object.list=di,dims=1:30)
+#integrated <- IntegrateData(anchorset=dat.anchors,dim=1:30)
+
+#DefaultAssay(integrated)<-"integrated"
+#integrated <- ScaleData(integrated)
+#integrated <- RunPCA(integrated,npcs=30)
+#integrated <- RunUMAP(integrated,reduction="pca",dims=1:30)
+#integrated <- RunTSNE(integrated,reduction="pca",dims=1:30)
+#integrated <- FindNeighbors(integrated, dims = 1:30, verbose = FALSE)
+#integrated <- FindClusters(integrated, verbose = FALSE)
+```
+
+## Load integrated data and create UMAP from original integrated run*
+
+NOTE: loading final object to avoid recalculating ssGSEA data
+
+```{r}
+#load("integrated_orig.Robj")
+load("../repo_data/integrated_091120.Robj")
+#load("../repo_data/integrated_final.Robj")
+```
+
+## Test plots
+
+```{r}
+DefaultAssay(integrated)<-"integrated"
+DimPlot(integrated,reduction="umap",split.by="orig.ident",group.by="orig.ident")
+DimPlot(integrated,reduction="umap",group.by="orig.ident")
+DimPlot(integrated,reduction="umap",group.by="integrated_snn_res.0.8", label=TRUE)
+```
+
+# Figure 3B - Add cluster/treatment metadata columns and plot labeled UMAP
+
+```{r, fig.width=14, fig.height=10}
+integrated@meta.data$treat_clust <- paste0(integrated@meta.data$orig.ident,integrated@meta.data$integrated_snn_res.0.8)
+integrated@meta.data$clust_treat <- paste0(integrated@meta.data$integrated_snn_res.0.8,integrated@meta.data$orig.ident)
+integrated@meta.data$celltype <- integrated@meta.data$integrated_snn_res.0.8
+Idents(object = integrated) <- integrated$celltype
+
+integrated <- RenameIdents(object = integrated,  '16' = '16_Tuft')
+integrated <- RenameIdents(object = integrated,  '11' = '11_EC')
+integrated <- RenameIdents(object = integrated,  '13' = '13_EEC')
+integrated <- RenameIdents(object = integrated,  '2' = '2_Stem')
+integrated <- RenameIdents(object = integrated,  '5' = '5_Stem')
+integrated <- RenameIdents(object = integrated,  '10' = '10_Stem')
+integrated <- RenameIdents(object = integrated,  '14' = '14_Paneth')
+integrated <- RenameIdents(object = integrated,  '8' = '8_Secretory_Progenitor')
+integrated <- RenameIdents(object = integrated,  '9' = '9_Goblet')
+integrated <- RenameIdents(object = integrated,  '1' = '1_Secretory_Progenitor')
+integrated <- RenameIdents(object = integrated,  '4' = '4_Secretory_Progenitor')
+integrated <- RenameIdents(object = integrated,  '15' = '15_Secretory_Progenitor')
+integrated <- RenameIdents(object = integrated,  '3' = '3_EC_Progenitor')
+integrated <- RenameIdents(object = integrated,  '6' = '6_EC_Progenitor')
+integrated <- RenameIdents(object = integrated,  '0' = '0_Early_TA')
+integrated <- RenameIdents(object = integrated,  '7' = '7_Early_TA')
+integrated <- RenameIdents(object = integrated,  '12' = '12_Unknown')
+
+
+integrated[["clust_celltype"]] <- Idents(object = integrated)
+```
+
+## Fig3b UMAP Plot with color blind safe colors
+
+```{r, fig.width=14, fig.height=10}
+Idents(object = integrated) <- integrated$clust_celltype
+
+celltype_colors <- c("2_Stem"="#117733",
+                     "5_Stem"="#999933",
+                     "10_Stem"="#009E73",
+                     "0_Early_TA"="#E69F00",
+                     "7_Early_TA"="#D55E00",
+                     "6_EC_Progenitor"="#0072B2",
+                     "3_EC_Progenitor"="#56B4E9",
+                     "11_EC"="#88CCEE",
+                     "13_EEC"="#6699CC",
+                     "1_Secretory_Progenitor"="#661100",
+                     "4_Secretory_Progenitor"="#882255",
+                     "8_Secretory_Progenitor"="#CC6677",
+                     "15_Secretory_Progenitor"="#AA4499",
+                     "14_Paneth"="#332288",
+                     "16_Tuft"="#000000",
+                     "9_Goblet"="#F0E442",
+                     "12_Unknown"="#999999")  
+
+dp.cb <- DimPlot(integrated,reduction="umap", cols=celltype_colors, label=TRUE, repel=TRUE, pt.size=2, label.size=6) + NoLegend()
+dp.cb
+
+#pdf('Fig3b.cbSafe.pdf',width=14, height=10)
+#dp.cb
+#dev.off()
+```
+
+## Figure 3C - LGR5 Vln plot with color blind safe colors
+
+```{r, fig.width=14, fig.height=8}
+DefaultAssay(integrated)<-"RNA"
+Idents(object = integrated) <- integrated$integrated_snn_res.0.8
+plotOrder <- c("5","2","10","0","1","3","4","6","7","8","9","11","12","13","14","15","16")
+
+vln_colors <- c("2"="#117733",
+                "5"="#999933",
+                "10"="#009E73",
+                "0"="#E69F00",
+                "1"="#661100",
+                "3"="#56B4E9",
+                "4"="#882255",
+                "6"="#0072B2",
+                "7"="#D55E00",
+                "8"="#CC6677",
+                "9"="#F0E442",
+                "11"="#88CCEE",
+                "12"="#999999",
+                "13"="#6699CC",
+                "14"="#332288",
+                "15"="#AA4499",
+                "16"="#000000")  
+
+Idents(integrated) <- factor(Idents(integrated), levels= plotOrder)
+vl.cb <- VlnPlot(integrated, cols=vln_colors, idents = , features = c("Lgr5"), pt.size = 0.5, slot="data")
+vl.cb
+
+#pdf('Fig3c_cbSafe.pdf',width=14, height=8)
+#vl.cb
+#dev.off()
+```
+
+## Figure S3,B - Table of cell counts in each integrated data cluster and sample
+
+```{r}
+p.integrated <- table(integrated@meta.data$integrated_snn_res.0.8,integrated@meta.data$orig.ident)
+round(prop.table(p.integrated,2),3)
+```
+
+## Figure 5D - heatmap
+
+```{r, fig.width=12, fig.height=10}
+DefaultAssay(integrated)<- "integrated"
+Idents(object = integrated) <- integrated$integrated_snn_res.0.8
+dd <- subset(integrated, idents = c("2", "5", "10"), downsample=100)
+
+topvst <- head(VariableFeatures(dd), 500)
+mat <- as.matrix(dd@assays$integrated@scale.data) #as.matrix(subset_dd@assays$integrated@scale.data)
+mat <- mat[topvst,]
+
+genes <- c(GOI.lists$Biton_S1_ISC.I, GOI.lists$Biton_S1_ISC.II, GOI.lists$Biton_S1_ISC.III)
+labels <- c(rep('Biton ISC I', length(GOI.lists$Biton_S1_ISC.I)), 
+            rep('Biton ISC II', length(GOI.lists$Biton_S1_ISC.II)), 
+            rep('Biton ISC III', length(GOI.lists$Biton_S1_ISC.III)))
+
+idxs <- which(genes %in% rownames(mat))
+genes <- genes[idxs]
+labels <- labels[idxs]
+mat <- mat[genes,]
+
+ht <- Heatmap(mat, column_names_side = 'top', row_names_gp = gpar(fontsize = 9), column_names_gp = gpar(fontsize = 12),
+              column_title = '', name = 'scaled data', column_labels = rep('', ncol(mat)),
+              column_split = factor(as.character(dd$integrated_snn_res.0.8), levels = c('5', '2', '10')), 
+              row_split = labels, row_order = genes, #column_order = sort(colnames(mat)),
+              cluster_column_slices = FALSE,
+              top_annotation = HeatmapAnnotation(cluster = as.character(dd$integrated_snn_res.0.8)))
+
+draw(ht)
+
+#pdf('Fig3D.pdf',width=12, height=10)
+#draw(ht)
+#dev.off()
+```
+
+## GSEA dot plots
+
+```{r}
+data <- as.data.frame(read_excel('cluster_2_5_10stem_gsea.xlsx', sheet = 'Sheet2'))
+data
+data$FDR <- data$`FDR q-val` + 0.001
+data$Comparison <- gsub('\\.noNA\\.NES','',data$Comparison)
+
+comparisons <- c('f5_v_al5', 'rf5_v_al5', 'rf.rapa5_v_al5')
+sub_data <- data[which(data$Comparison %in% comparisons),]
+cl5 <- ggplot(data=sub_data, aes(y=NAME, x=factor(Comparison, levels = comparisons), size=-log10(FDR), color=NES)) + 
+  geom_point() + 
+  scale_color_gradient2(midpoint=0, low="blue", mid="white",
+                        high="red", space ="Lab", limits=c(-3,3))+
+  scale_size_continuous(range=c(1,6))+
+  ggtitle('Cluster 5 GSEA') + theme_classic() + 
+  theme(legend.position="right", axis.text.x = element_text(angle = 90)) + ylab('Gene Set') + xlab('Comparison')
+cl5
+
+#pdf('Fig5F.pdf',width=4, height=4)
+#cl5
+#dev.off()
+
+comparisons <- c('f2_v_al2', 'rf2_v_al2', 'rf.rapa2_v_al2')
+sub_data <- data[which(data$Comparison %in% comparisons),]
+cl2 <- ggplot(data=sub_data, aes(y=NAME, x=factor(Comparison, levels = comparisons), size=-log10(FDR), color=NES)) + 
+  geom_point() + 
+  scale_color_gradient2(midpoint=0, low="blue", mid="white",
+                        high="red", space ="Lab", limits=c(-3,3))+
+  scale_size_continuous(range=c(1,6))+
+  ggtitle('Cluster 2 GSEA') + theme_classic() + 
+  theme(legend.position="right", axis.text.x = element_text(angle = 90)) + ylab('Gene Set') + xlab('Comparison')
+cl2
+
+#pdf('FigS3Da.pdf',width=4, height=4)
+#cl2
+#dev.off()
+
+comparisons <- c('f10_v_al10', 'rf10_v_al10', 'rf.rapa10_v_al10')
+sub_data <- data[which(data$Comparison %in% comparisons),]
+cl10 <- ggplot(data=sub_data, aes(y=NAME, x=factor(Comparison, levels = comparisons), size=-log10(FDR), color=NES)) + 
+  geom_point() + 
+  scale_color_gradient2(midpoint=0, low="blue", mid="white",
+                        high="red", space ="Lab", limits=c(-3,3))+
+  scale_size_continuous(range=c(1,6))+
+  ggtitle('Cluster 10 GSEA') + theme_classic() + 
+  theme(legend.position="right", axis.text.x = element_text(angle = 90)) + ylab('Gene Set') + xlab('Comparison')
+cl10
+
+#pdf('FigS3Db.pdf',width=4, height=4)
+#cl10
+#dev.off()
+
+#there is a glitch in this plot, cl2 loses x axis, legend order is different
+
+figS3D <- ggarrange(cl2,cl10, ncol=2, nrow=1)
+figS3D
+
+#pdf('FigS3D_incorrect.pdf',width=8, height=4)
+#figS3D
+#dev.off()
+```
+
+## Extended data Figure S4A - Feature Plots - color blind safe
+
+```{r}
+DefaultAssay(integrated)<-"RNA"
+colorScheme <- c("#C1BEBF","#fe6100")
+
+fp.Muc2 <- FeaturePlot(integrated,reduction="umap",features="Muc2",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Muc2
+
+fp.Tff3 <- FeaturePlot(integrated,reduction="umap",features="Tff3",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Tff3
+
+fp.Lyz1 <- FeaturePlot(integrated,reduction="umap",features="Lyz1",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Lyz1
+
+fp.Defa30 <- FeaturePlot(integrated,reduction="umap",features="Defa30",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Defa30
+
+fp.Chga <- FeaturePlot(integrated,reduction="umap",features="Chga",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Chga
+
+fp.Reg3a <- FeaturePlot(integrated,reduction="umap",features="Reg3a",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Reg3a
+
+fp.Alpi <- FeaturePlot(integrated,reduction="umap",features="Alpi",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Alpi
+
+fp.Atoh1 <- FeaturePlot(integrated,reduction="umap",features="Atoh1",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Atoh1
+
+fp.Lgr5 <- FeaturePlot(integrated,reduction="umap",features="Lgr5",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Lgr5
+
+fp.Smoc2 <- FeaturePlot(integrated,reduction="umap",features="Smoc2",cols=colorScheme, slot = "data",label=TRUE, repel=TRUE,label.size=4)
+fp.Smoc2
+```
+
+```{r,fig.width=20,fig.height=10}
+figS4A <- ggarrange(fp.Muc2,fp.Tff3,fp.Lyz1,fp.Defa30,fp.Chga,fp.Reg3a,fp.Alpi,fp.Atoh1,fp.Lgr5,fp.Smoc2, legend = "right", ncol = 5, nrow = 2)
+
+figS4A
+
+#pdf('FigS4A_cbSafe.pdf',width=20, height=10)
+#figS4A
+#dev.off()
+```
+
+## Figure 5E - cell cycle data - color blind safe
+
+```{r}
+DefaultAssay(integrated)<-"RNA"
+gene.names <- rownames(integrated@assays$RNA@data)
+Idents(object = integrated) <- integrated$seurat_clusters
+stem.subset <- subset(integrated, idents = c("2","5","10"))
+levels(stem.subset) <- c("5","2","10")
+
+vln_colors <- c("2"="#117733",
+                "5"="#999933",
+                "10"="#009E73")
+  
+s.InData <- intersect(gene.names,GOI.lists$mm.s)
+g2m.InData <- intersect(gene.names,GOI.lists$mm.g2m)
+stem.subset[["percent.mm.s"]] <- PercentageFeatureSet(stem.subset, features = s.InData)
+stem.subset[["percent.mm.g2m"]] <- PercentageFeatureSet(stem.subset, features = g2m.InData)
+mm.s <- VlnPlot(stem.subset, cols = vln_colors, features="percent.mm.s",pt.size = 0.3,slot = "data")
+mm.s
+mm.g2m <- VlnPlot(stem.subset, cols = vln_colors, features="percent.mm.g2m",pt.size = 0.3,slot = "data")
+mm.g2m
+
+figS4b <- ggarrange(mm.s,mm.g2m, legend = FALSE, ncol=2, nrow=1)
+figS4b
+
+pdf('figS4b_cbSafe.pdf',width=8, height=4)
+figS4b
+dev.off()
+
+integrated[["percent.mm.s"]] <- PercentageFeatureSet(integrated, features = s.InData)
+integrated[["percent.mm.g2m"]] <- PercentageFeatureSet(integrated, features = g2m.InData)
+
+mm.g2m.Flag <- if_else(integrated@meta.data$percent.mm.g2m >= 0.3, "Yes", "No")
+integrated@meta.data$mm.g2m.Flag <- mm.g2m.Flag
+
+p <- table(integrated$clust_treat,integrated$mm.g2m.Flag)
+p.g2m.summary <- round(prop.table(p,2),3)
+
+mm.s.Flag <- if_else(integrated@meta.data$percent.mm.s >= 0.2, "Yes", "No")
+integrated@meta.data$mm.s.Flag <- mm.s.Flag
+
+p <- table(integrated$clust_treat,integrated$mm.s.Flag)
+p.s.summary <- round(prop.table(p,1),3)
+```
+
+## escape ssGSEA - run ssGSEA to quantify expression of the BitonI gene set clusters
+
+This code is no longer working due to R and package updates but resulting data is stored in the seurat object
+escape 1.0.0 is probably required but is no longer available. the version in this R image is 1.0.1
+ escape ssGSEA - run ssGSEA to quantify expression of the BitonI gene set clusters
+
+```{r}
+#egs <- GeneSet(GOI.lists$Biton_S1_ISC.I, setName="BitonI")
+#ES <- enrichIt(obj = integrated, gene.sets = egs, groups = 1000, cores = 4)
+#integrated@meta.data$BitonI_ssGSEA <- ES$BitonI
+```
+
+## escape ssGSEA - run ssGSEA to quantify expression of the BitonII gene set clusters
+
+```{r}
+# egs <- GeneSet(GOI.lists$Biton_S1_ISC.II, setName="BitonII")
+# ES <- enrichIt(obj = integrated, gene.sets = egs, groups = 1000, cores = 4)
+# integrated@meta.data$BitonII_ssGSEA <- ES$BitonII
+```
+
+## escape ssGSEA - run ssGSEA to quantify expression of the BitonIII gene set clusters
+
+```{r}
+# egs <- GeneSet(GOI.lists$Biton_S1_ISC.III, setName="BitonIII")
+# ES <- enrichIt(obj = integrated, gene.sets = egs, groups = 1000, cores = 4)
+# integrated@meta.data$BitonIII_ssGSEA <- ES$BitonIII
+```
+
+## Extended data 5 plots - colorblind safe
+
+ Figure 5G - Biton 1 in cluster5*
+ Figure 5G_II - Biton II in cluster2*
+ Figure 5G_III - Biton III in cluster10*
+ Figure 5H - Pdgfa in cluster5*
+ Figure S3E - Gkn3 in cluster5*
+ 
+
+```{r,fig.width=4,fig.height=4}
+Idents(object = integrated) <- integrated$seurat_clusters
+clust5.subset <- subset(integrated, idents = c("5"))
+Idents(object = clust5.subset) <- clust5.subset$treat_clust
+
+vln_colors <- c("al5"="#e69f00",
+                "f5"="#56b4f9",
+                "rf5"="#117733",
+                "rf.rapa5"="#d55e00")
+
+plot.order <- c("al5","f5","rf5","rf.rapa5")
+Idents(object = clust5.subset) <- factor(Idents(object = clust5.subset), levels = plot.order)
+vln.BitonI.ssGSEA <- VlnPlot(clust5.subset, cols = vln_colors, features="BitonI_ssGSEA",slot = "data",pt.size = 0.4) + 
+  stat_summary(fun = median, geom='point', size = 15, colour = "black", shape = 95) + NoLegend() + ylab("Enrichment Score") + ggtitle("Biton ISC-I_ssGSEA")
+
+vln.BitonI.ssGSEA
+
+#pdf('Fig5G.pdf',width=4, height=4)
+#vln.BitonI.ssGSEA
+#dev.off()
+
+vln.Pdgfa <- VlnPlot(clust5.subset, cols = vln_colors, features = c("Pdgfa"), slot= "data",pt.size = 0.4) + NoLegend()
+vln.Pdgfa
+
+pdf('FigS4g_cbSafe.pdf',width=4, height=4)
+vln.Pdgfa
+dev.off()
+
+vln.Gkn3 <- VlnPlot(clust5.subset, cols = vln_colors, features = c("Gkn3"), slot= "data",pt.size = 0.4) + NoLegend()
+vln.Gkn3
+
+pdf('FigS4h_cbSafe.pdf',width=4, height=4)
+vln.Gkn3
+dev.off()
+
+clust2.subset <- subset(integrated, idents = c("2"))
+Idents(object = clust2.subset) <- clust2.subset$treat_clust
+
+vln_colors <- c("al2"="#e69f00",
+                "f2"="#56b4f9",
+                "rf2"="#117733",
+                "rf.rapa2"="#d55e00")
+
+plot.order <- c("al2","f2","rf2","rf.rapa2")
+Idents(object = clust2.subset) <- factor(Idents(object = clust2.subset), levels = plot.order)
+vln.BitonII.ssGSEA <- VlnPlot(clust2.subset, cols = vln_colors, features="BitonII_ssGSEA",slot = "data",pt.size = 0.4) + 
+  stat_summary(fun = median, geom='point', size = 15, colour = "black", shape = 95) + NoLegend() + ylab("Enrichment Score") + ggtitle("Biton ISC-II_ssGSEA")
+vln.BitonII.ssGSEA
+
+#pdf('Fig5G_II.pdf',width=4, height=4)
+#vln.BitonII.ssGSEA
+#dev.off()
+
+clust10.subset <- subset(integrated, idents = c("10"))
+Idents(object = clust10.subset) <- clust10.subset$treat_clust
+
+vln_colors <- c("al10"="#e69f00",
+                "f10"="#56b4f9",
+                "rf10"="#117733",
+                "rf.rapa10"="#d55e00")
+
+plot.order <- c("al10","f10","rf10","rf.rapa10")
+Idents(object = clust10.subset) <- factor(Idents(object = clust10.subset), levels = plot.order)
+vln.BitonIII.ssGSEA <- VlnPlot(clust10.subset, cols = vln_colors, features="BitonIII_ssGSEA",slot = "data",pt.size = 0.4) + 
+  stat_summary(fun = median, geom='point', size = 15, colour = "black", shape = 95) + NoLegend() + ylab("Enrichment Score") + ggtitle("Biton ISC-III_ssGSEA")
+vln.BitonIII.ssGSEA
+
+#pdf('Fig5G_III.pdf',width=4, height=4)
+#vln.BitonIII.ssGSEA
+#dev.off()
+```
+
+## Biton plots assembled
+
+```{r,fig.height=5,fig.width=10}
+bitonPlot <- ggarrange(vln.BitonI.ssGSEA,vln.BitonII.ssGSEA,vln.BitonIII.ssGSEA,nrow=1,ncol=3)
+bitonPlot 
+
+#pdf('FigS4f_cbSafe.pdf',width=10, height=5)
+#bitonPlot
+#dev.off()
+```
+
+## Fig 5H style plots for Oat
+### Figure 5H style plots for Oat, Oct, Ass Asl in cluster5
+
+```{r}
+DefaultAssay(integrated)<-"RNA"
+Idents(object = integrated) <- integrated$seurat_clusters
+clust5.subset <- subset(integrated, idents = c("5"))
+Idents(object = clust5.subset) <- clust5.subset$treat_clust
+levels(clust5.subset) <- c("al5","f5","rf5","rf.rapa5")
+clust5.subset$treat_clust <- factor(x = clust5.subset$treat_clust, levels = c("al5","f5","rf5","rf.rapa5"))
+VlnPlot(clust5.subset, features = c("Oat"), split.by = "treat_clust", group.by = "treat_clust", slot= "data",pt.size = 0.5)
+
+vln.Oat.5 <- VlnPlot(clust5.subset, features = c("Oat"), slot= "data",pt.size = 0.1)
+vln.Oat.5
+
+#pdf('Fig5H_Oat.5.pdf',width=4, height=4)
+#vln.Oat.5
+#dev.off()
+
+clust2.subset <- subset(integrated, idents = c("2"))
+Idents(object = clust2.subset) <- clust2.subset$treat_clust
+levels(clust2.subset) <- c("al2","f2","rf2","rf.rapa2")
+clust2.subset$treat_clust <- factor(x = clust2.subset$treat_clust, levels = c("al2","f2","rf2","rf.rapa2"))
+VlnPlot(clust2.subset, features = c("Oat"), split.by = "treat_clust", group.by = "treat_clust", slot= "data",pt.size = 0.5)
+
+vln.Oat.2 <- VlnPlot(clust2.subset, features = c("Oat"), slot= "data",pt.size = 0.1)
+vln.Oat.2
+
+#pdf('Fig5H_Oat.2.pdf',width=4, height=4)
+#vln.Oat.2
+#dev.off()
+
+clust10.subset <- subset(integrated, idents = c("10"))
+Idents(object = clust10.subset) <- clust10.subset$treat_clust
+levels(clust10.subset) <- c("al10","f10","rf10","rf.rapa10")
+clust10.subset$treat_clust <- factor(x = clust10.subset$treat_clust, levels = c("al10","f10","rf10","rf.rapa10"))
+VlnPlot(clust10.subset, features = c("Oat"), split.by = "treat_clust", group.by = "treat_clust", slot= "data",pt.size = 0.5)
+
+#vln.Oat.10 <- VlnPlot(clust10.subset, features = c("Oat"), slot= "data",pt.size = 0.1)
+#vln.Oat.10
+
+#pdf('Fig5H_Oat.10.pdf',width=4, height=4)
+#vln.Oat.10
+#dev.off()
+
+DefaultAssay(integrated)<-"RNA"
+Idents(object = integrated) <- integrated$seurat_clusters
+clust5.2.10.subset <- subset(integrated, idents = c("5","2","10"))
+Idents(object = clust5.2.10.subset) <- clust5.2.10.subset$treat_clust
+levels(clust5.2.10.subset) <- c("al5","f5","rf5","rf.rapa5","al2","f2","rf2","rf.rapa2","al10","f10","rf10","rf.rapa10")
+clust5.2.10.subset$treat_clust <- factor(x = clust5.2.10.subset$treat_clust, levels = c("al5","f5","rf5","rf.rapa5","al2","f2","rf2","rf.rapa2","al10","f10","rf10","rf.rapa10"))
+VlnPlot(clust5.2.10.subset, features = c("Oat"), split.by = "treat_clust", group.by = "treat_clust", slot= "data",pt.size = 0.5)
+
+vln.Oat.5.2.10 <- VlnPlot(clust5.2.10.subset, features = c("Oat"), slot= "data",pt.size = 0.1)
+vln.Oat.5.2.10
+
+#pdf('Fig5H_Oat.5.2.10.pdf',width=12, height=4)
+#vln.Oat.5.2.10
+#dev.off()
+```
+
+## Figure 5H style plots but without cluster for Oat*
+
+```{r}
+DefaultAssay(integrated)<-"RNA"
+Idents(object = integrated) <- integrated$orig.ident
+levels(integrated) <- c("al","f","rf","rf.rapa")
+integrated$orig.ident <- factor(x = integrated$orig.ident, levels = c("al","f","rf","rf.rapa"))
+VlnPlot(integrated, features = c("Oat"), split.by = "orig.ident", group.by = "orig.ident", slot= "data",pt.size = 0.5)
+
+vln.Oat.noclust <- VlnPlot(integrated, features = c("Oat"), slot= "data",pt.size = 0.1)
+vln.Oat.noclust
+
+#pdf('Fig5H_Oat.noclust.pdf',width=4, height=4)
+#vln.Oat.noclust
+#dev.off()
+```
+
+## Figure S3E - Differential Expression Testing to prepare .rnk files*
+
+```{r}
+# DefaultAssay(integrated)<-"RNA"
+# Idents(object = integrated) <- integrated$treat_clust
+# levels(x = integrated)
+# ##
+# #adjust the id1 and id2 variables to set up different tests
+# #could use a loop for this
+# ##
+# id1 <- "al5"
+# id2 <- "al2"
+# outData <- paste(id1,id2,"Markers",sep=".")
+# outData <- FindMarkers(integrated, ident.1 = id1, ident.2 = id2,logfc.threshold = 0, assay="RNA")
+# outData <- tibble::rownames_to_column(outData,"#MGISym")
+# rnk.tmp <- outData %>% dplyr::select(c("#MGISym","avg_logFC"))
+# #write.table(rnk.tmp, sep='\t',file=paste0(id1,"_v_",id2,".rnk"),col.names=TRUE, quote=FALSE, row.names=FALSE)
+# 
+# id1 <- "al10"
+# id2 <- "al2"
+# outData <- paste(id1,id2,"Markers",sep=".")
+# outData <- FindMarkers(integrated, ident.1 = id1, ident.2 = id2,logfc.threshold = 0, assay="RNA")
+# outData <- tibble::rownames_to_column(outData,"#MGISym")
+# rnk.tmp <- outData %>% dplyr::select(c("#MGISym","avg_logFC"))
+# #write.table(rnk.tmp, sep='\t',file=paste0(id1,"_v_",id2,".rnk"),col.names=TRUE, quote=FALSE, row.names=FALSE)
+# 
+# id1 <- "al10"
+# id2 <- "al5"
+# outData <- paste(id1,id2,"Markers",sep=".")
+# outData <- FindMarkers(integrated, ident.1 = id1, ident.2 = id2,logfc.threshold = 0, assay="RNA")
+# outData <- tibble::rownames_to_column(outData,"#MGISym")
+# rnk.tmp <- outData %>% dplyr::select(c("#MGISym","avg_logFC"))
+# #write.table(rnk.tmp, sep='\t',file=paste0(id1,"_v_",id2,".rnk"),col.names=TRUE, quote=FALSE, row.names=FALSE)
+```
+
+# Save integrated object with ssGSEA data
+
+```{r}
+#save(integrated, file="integrated_final.Robj")
+```
+
+```{r}
+sessionInfo()
+writeLines(capture.output(sessionInfo()), "2024_sessionInfo.txt")
+```
+

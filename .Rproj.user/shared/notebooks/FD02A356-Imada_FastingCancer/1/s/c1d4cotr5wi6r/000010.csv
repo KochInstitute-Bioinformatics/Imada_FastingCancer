@@ -1,0 +1,3 @@
+"0",""
+"0","fp.Atoh1 <- FeaturePlot(integrated,reduction=""umap"",features=""Atoh1"",cols=colorScheme, slot = ""data"",label=TRUE, repel=TRUE,label.size=4)"
+"0","fp.Atoh1"
